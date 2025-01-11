@@ -100,7 +100,7 @@ class App(ctk.CTk):
             self.append_log("Scanning directory for DICOM files...")
             self.num_of_items = sum(
                 1
-                for root, _, filenames in os.walk(self.dir_path)
+                for _, _, filenames in os.walk(self.dir_path)
                 for f in filenames
                 if f.endswith(".dcm")
             )
@@ -227,26 +227,14 @@ class App(ctk.CTk):
             ax_image.clear()
             current_image = self.hu_images[index].reshape(self.images[index].shape)
 
-            # Color mapping based on HU values
             mapped_image = np.zeros_like(current_image, dtype=np.uint8)
-            mapped_image[(current_image < -700)] = 0  # Air (black)
-            mapped_image[(-100 <= current_image) & (current_image < -80)] = (
-                1  # Fat (yellow)
-            )
-            mapped_image[(-5 <= current_image) & (current_image <= 5)] = (
-                2  # Water (blue)
-            )
-            mapped_image[(70 <= current_image) & (current_image <= 90)] = (
-                3  # Blood (red)
-            )
-            mapped_image[(30 <= current_image) & (current_image <= 50)] = (
-                4  # Muscle (pink)
-            )
-            mapped_image[(120 <= current_image) & (current_image <= 140)] = (
-                5  # Contrast (orange)
-            )
-            mapped_image[(current_image > 130)] = 6  # Bone (white)
-
+            mapped_image[(current_image < -700)] = 0
+            mapped_image[(-100 <= current_image) & (current_image < -80)] = 1
+            mapped_image[(-5 <= current_image) & (current_image <= 5)] = 2
+            mapped_image[(70 <= current_image) & (current_image <= 90)] = 3
+            mapped_image[(30 <= current_image) & (current_image <= 50)] = 4
+            mapped_image[(120 <= current_image) & (current_image <= 140)] = 5
+            mapped_image[(current_image > 130)] = 6
             color_map = {
                 0: "Air (black)",
                 1: "Fat (yellow)",
@@ -257,19 +245,18 @@ class App(ctk.CTk):
                 6: "Bones (white)",
             }
 
-            # Convert mapped image to RGB for visualization
             rgb_image = np.zeros((*current_image.shape, 3), dtype=np.uint8)
-            for key, color in color_map.items():
-                if key == 0:  # Skip air for percentage calculation
+            for key, _ in color_map.items():
+                if key == 0:
                     continue
                 rgb_image[mapped_image == key] = np.array(
                     {
-                        1: [255, 255, 0],  # Yellow (Fat)
-                        2: [0, 0, 255],  # Blue (Water)
-                        3: [255, 0, 0],  # Red (Blood)
-                        4: [255, 192, 203],  # Pink (Muscle)
-                        5: [255, 165, 0],  # Orange (Contrast)
-                        6: [255, 255, 255],  # White (Bone)
+                        1: [255, 255, 0],
+                        2: [0, 0, 255],
+                        3: [255, 0, 0],
+                        4: [255, 192, 203],
+                        5: [255, 165, 0],
+                        6: [255, 255, 255],
                     }[key],
                     dtype=np.uint8,
                 )
@@ -279,15 +266,12 @@ class App(ctk.CTk):
             ax_image.set_axis_off()
             fig_image.canvas.draw_idle()
 
-            # Count the occurrence of each tissue type, excluding air
             unique, counts = np.unique(mapped_image, return_counts=True)
-            total_pixels = current_image.size - np.sum(
-                mapped_image == 0
-            )  # Exclude air pixels
+            total_pixels = current_image.size - np.sum(mapped_image == 0)
             percentages = {
                 color_map[key]: (counts[idx] / total_pixels) * 100
                 for idx, key in enumerate(unique)
-                if key != 0  # Exclude air
+                if key != 0
             }
 
             percentage_text = "\n".join(
@@ -298,7 +282,6 @@ class App(ctk.CTk):
                 ]
             )
 
-            # Update the right info box with tissue percentages
             self.right_info_box.configure(state="normal")
             self.right_info_box.delete("1.0", "end")
             self.right_info_box.insert("1.0", percentage_text)
